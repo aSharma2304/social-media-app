@@ -1,0 +1,97 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(uuid())
+  username      String         @unique
+  fullname      String
+  bio           String?
+  avatar        String?
+  email         String         @unique
+  password      String
+  posts         Post[]
+  followers     Follower[]     @relation("FollowersRelation")
+  followings    Follower[]     @relation("FollowingsRelation")
+  blocked       String[]
+  comments      Comment[]
+  createdAt     DateTime       @default(now())
+  Like          Like[]
+  messages      Message[]      @relation("UserMessages")
+  conversations Conversation[] @relation("UserConversations")
+}
+
+model Follower {
+  id          String @id @default(uuid())
+  followerId  String
+  followingId String
+
+  follower  User @relation("FollowersRelation", fields: [followerId], references: [id])
+  following User @relation("FollowingsRelation", fields: [followingId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@unique([followerId, followingId]) // Prevent duplicate follows
+}
+
+model Post {
+  id        String    @id @default(uuid())
+  text      String?
+  image     String?
+  postedBy  String
+  user      User      @relation(fields: [postedBy], references: [id])
+  mentions  String[]
+  hashtags  String[]
+  likes     Like[]
+  comments  Comment[]
+  createdAt DateTime  @default(now())
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  content   String
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Like {
+  id     String @id @default(uuid())
+  userId String
+  postId String
+  user   User   @relation(fields: [userId], references: [id])
+  post   Post   @relation(fields: [postId], references: [id])
+}
+
+model Conversation {
+  id            String    @id @default(uuid())
+  participants  User[]    @relation("UserConversations")
+  messages      Message[] @relation("ConversationMessages")
+  lastMessageId String?   @unique
+  lastMessage   Message?  @relation("LastMessage", fields: [lastMessageId], references: [id])
+  createdAt     DateTime  @default(now())
+}
+
+model Message {
+  id             String        @id @default(uuid())
+  conversation   Conversation  @relation("ConversationMessages", fields: [conversationId], references: [id])
+  conversationId String
+  sender         User          @relation("UserMessages", fields: [userId], references: [id])
+  userId         String
+  text           String
+  createdAt      DateTime      @default(now())
+  lastMessageIn  Conversation? @relation("LastMessage")
+}
