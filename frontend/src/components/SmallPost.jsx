@@ -13,6 +13,8 @@ const SmallPost = ({ post }) => {
 
   const [liked, setLiked] = useState(isLiked);
   const [noOfLikes, setNoOfLikes] = useState(post?.likes?.length || 0);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   const navigateToProfile = (e) => {
     e.preventDefault();
@@ -21,13 +23,9 @@ const SmallPost = ({ post }) => {
   };
 
   const handleLike = async (postId) => {
-    console.log("post liked or unliked");
-
-    // Save previous state in case we need to roll back
     const previousLiked = liked;
     const previousNoLikes = noOfLikes;
 
-    // Optimistically update the UI
     setNoOfLikes((prev) => (liked ? Math.max(0, prev - 1) : prev + 1));
     setLiked((prev) => !prev);
 
@@ -39,19 +37,15 @@ const SmallPost = ({ post }) => {
       );
 
       if (res.status !== 200) {
-        // Rollback on unexpected non-200 responses
         setNoOfLikes(previousNoLikes);
         setLiked(previousLiked);
       }
     } catch (err) {
-      // Rollback on error
       console.error("Error liking/unliking post:", err);
       setNoOfLikes(previousNoLikes);
       setLiked(previousLiked);
     }
   };
-
-  // console.log("got post", post);
 
   useEffect(() => {
     const currentIsLiked = post?.likes?.some(
@@ -59,34 +53,58 @@ const SmallPost = ({ post }) => {
     );
     setLiked(currentIsLiked);
     setNoOfLikes(post?.likes?.length || 0);
-  }, [post, user?.id]);
+
+    if (post?.image) {
+      setImageLoaded(false);
+      setImageError(false);
+    }
+  }, [post?.id, user?.id]);
 
   return (
-    <div className="flex flex-col space-y-2 p-3 w-full h-fit rounded-xl   bg-[#121212] border border-white/5 ">
+    <div className="flex flex-col space-y-2 p-3 w-full h-fit rounded-xl bg-[#121212] border border-white/5">
       <Link
         to={`/${post?.user?.username}/post/${post?.id}`}
         className="cursor-pointer"
       >
         {post?.image && (
-          <img
-            src={post?.image}
-            alt="Post Image"
-            className="rounded-lg mt-3 w-full max-h-[400px] object-cover"
-          />
+          <div className="mt-3 w-full overflow-hidden rounded-lg">
+            {!imageLoaded && !imageError && (
+              <div className="w-full h-48 bg-gray-800 animate-pulse rounded-lg" />
+            )}
+            <img
+              src={post?.image}
+              alt="Post content"
+              className={`w-full rounded-lg ${
+                imageLoaded ? "block" : "hidden"
+              }`}
+              style={{
+                maxHeight: "400px",
+                objectFit: "contain",
+                backgroundColor: "rgba(0,0,0,0.2)",
+              }}
+              onLoad={() => setImageLoaded(true)}
+              onError={() => setImageError(true)}
+            />
+            {imageError && (
+              <div className="w-full h-40 bg-gray-800 flex items-center justify-center text-gray-400 rounded-lg">
+                Image could not be loaded
+              </div>
+            )}
+          </div>
         )}
         <p className="text-gray-300 mt-2">{post?.text}</p>
       </Link>
 
-      <footer className="flex  justify-between">
+      <footer className="flex justify-between mt-3">
         <div
-          className="flex items-center space-x-3 w-fit  cursor-pointer"
+          className="flex items-center space-x-3 w-fit cursor-pointer"
           onClick={navigateToProfile}
         >
           {post?.user?.avatar ? (
             <img
               src={post?.user?.avatar}
               alt="User Avatar"
-              className="w-10 h-10 rounded-full object-cover "
+              className="w-10 h-10 rounded-full object-cover"
             />
           ) : (
             <div className="w-10 h-10 rounded-full bg-[#111111] flex items-center justify-center text-white text-xl font-medium">
@@ -96,20 +114,19 @@ const SmallPost = ({ post }) => {
           <p className="text-white font-semibold">{post?.user?.username}</p>
         </div>
 
-        <div className="flex space-x-2">
+        <div className="flex space-x-4">
           <button
             className="flex items-center space-x-1 hover:text-red-500 transition-all duration-300 ease-in-out cursor-pointer"
             onClick={(e) => {
               e.stopPropagation();
               e.preventDefault();
-
               handleLike(post?.id);
             }}
           >
             {liked ? (
               <FaHeart className="size-5 text-red-500" />
             ) : (
-              <FaRegHeart className="size-5"></FaRegHeart>
+              <FaRegHeart className="size-5" />
             )}
             <span>{noOfLikes}</span>
           </button>
